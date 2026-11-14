@@ -165,3 +165,12 @@ def test_cli(capsys):
     assert capsys.readouterr().out.strip() == "1500"
     assert main(["drives", "synchronous_speed_rpm", "frequency_hz=50", "poles=3"]) == 2
     assert main(["hv"]) == 0
+
+
+def test_cli_rejects_non_numeric_and_non_finite(capsys):
+    assert main(["hv", "paschen_breakdown_voltage", 'pressure_torr=__import__("os").system("id")', "gap_cm=1"]) == 2
+    assert "must be a number" in capsys.readouterr().err
+    assert main(["power", "three_phase_power", "line_voltage=nan", "line_current=1", "power_factor=0.5"]) == 2
+    assert main(["drives", "torque_nm", "power_w=inf", "speed_rpm=1"]) == 2
+    assert main(["drives", "torque_nm", "7500", "speed_rpm=1440"]) == 2
+    assert "key=value" in capsys.readouterr().err

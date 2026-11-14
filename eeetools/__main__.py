@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import inspect
+import math
 import sys
 
 from . import drives, hv, power, signals
@@ -18,13 +19,19 @@ def _functions(module) -> dict:
     }
 
 
-def _parse(value: str):
-    for cast in (int, float):
-        try:
-            return cast(value)
-        except ValueError:
-            pass
-    return value
+def _parse(key: str, value: str):
+    """Arguments are numbers only. Nothing typed on the command line is ever evaluated."""
+    try:
+        return int(value)
+    except ValueError:
+        pass
+    try:
+        number = float(value)
+    except ValueError:
+        raise ValueError(f"{key} must be a number, got {value!r}") from None
+    if not math.isfinite(number):
+        raise ValueError(f"{key} must be a finite number, got {value!r}")
+    return number
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -40,8 +47,11 @@ def main(argv: list[str] | None = None) -> int:
             print(f"{name}{inspect.signature(fn)}")
         return 0 if len(args) == 1 else 1
     try:
+        for item in args[2:]:
+            if "=" not in item:
+                raise ValueError(f"expected key=value, got {item!r}")
         kwargs = dict(item.split("=", 1) for item in args[2:])
-        result = functions[args[1]](**{k: _parse(v) for k, v in kwargs.items()})
+        result = functions[args[1]](**{k: _parse(k, v) for k, v in kwargs.items()})
     except (TypeError, ValueError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
