@@ -8,6 +8,8 @@ import math
 def synchronous_speed_rpm(frequency_hz: float, poles: int) -> float:
     if poles < 2 or poles % 2:
         raise ValueError("poles must be an even number >= 2")
+    if frequency_hz < 0:
+        raise ValueError("frequency must not be negative")
     return 120.0 * frequency_hz / poles
 
 
@@ -44,11 +46,15 @@ def induction_torque_nm(
         return 0.0
     ws = 2.0 * math.pi * synchronous_speed_rpm(frequency_hz, poles) / 60.0
     z_sq = (r1 + r2 / slip_value) ** 2 + (x1 + x2) ** 2
+    if ws == 0 or z_sq == 0:
+        raise ValueError("frequency and circuit impedance must not be zero")
     return phases * phase_voltage**2 * (r2 / slip_value) / (ws * z_sq)
 
 
 def breakdown_slip(r1: float, x1: float, r2: float, x2: float) -> float:
     """Slip at maximum (pull-out) torque."""
+    if r1 == 0 and x1 + x2 == 0:
+        raise ValueError("stator resistance and total reactance cannot both be zero")
     return r2 / math.sqrt(r1**2 + (x1 + x2) ** 2)
 
 

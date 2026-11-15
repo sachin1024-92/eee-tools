@@ -174,3 +174,47 @@ def test_cli_rejects_non_numeric_and_non_finite(capsys):
     assert main(["drives", "torque_nm", "power_w=inf", "speed_rpm=1"]) == 2
     assert main(["drives", "torque_nm", "7500", "speed_rpm=1440"]) == 2
     assert "key=value" in capsys.readouterr().err
+
+
+# --- bad input gives a clear error, never a traceback ------------------------
+@pytest.mark.parametrize(
+    "call",
+    [
+        lambda: hv.paschen_breakdown_voltage(760, 1.0, gamma=0),
+        lambda: hv.paschen_breakdown_voltage(760, 1.0, gamma=-1),
+        lambda: hv.paschen_minimum(a=0),
+        lambda: hv.relative_air_density(101.3, -273),
+        lambda: hv.relative_air_density(0, 20),
+        lambda: power.per_unit_change_of_base(0.1, 11, 10, 0, 100),
+        lambda: power.base_impedance(-11, 10),
+        lambda: power.voltage_drop_percent(10, 1, 1, 0.8, 0),
+        lambda: drives.breakdown_slip(0, 0, 1, 0),
+        lambda: drives.induction_torque_nm(230, 0.05, 0, 0, 0, 0, 50, 4),
+        lambda: drives.synchronous_speed_rpm(-50, 4),
+    ],
+)
+def test_impossible_inputs_raise_value_error(call):
+    with pytest.raises(ValueError):
+        call()
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["power", "per_unit_change_of_base", "z_pu=0.1", "kv_old=11", "mva_old=10", "kv_new=0", "mva_new=100"],
+        ["hv", "paschen_breakdown_voltage", "pressure_torr=760", "gap_cm=1", "gamma=0"],
+        ["signals", "from_db_power", "db=1e9"],
+        ["drives", "dc_motor_speed_rpm", "terminal_voltage=1e308", "armature_current=-1e308",
+         "armature_resistance=1e308", "k_phi=1"],
+        ["signals", "adc_ideal_snr_db", "bits=2.5"],
+        ["drives", "synchronous_speed_rpm", "frequency_hz=50", "poles=4.5"],
+    ],
+)
+def test_cli_reports_bad_values_without_traceback(argv, capsys):
+    assert main(argv) == 2
+    assert capsys.readouterr().err.startswith("error: ")
+
+
+def test_cli_accepts_whole_number_written_as_float(capsys):
+    assert main(["drives", "synchronous_speed_rpm", "frequency_hz=50", "poles=4.0"]) == 0
+    assert capsys.readouterr().out.strip() == "1500"

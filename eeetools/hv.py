@@ -10,6 +10,11 @@ import math
 EPS0 = 8.8541878128e-12  # F/m, vacuum permittivity
 
 
+def _check_gas_constants(a: float, b: float, gamma: float) -> None:
+    if a <= 0 or b <= 0 or gamma <= 0:
+        raise ValueError("gas constants a, b and gamma must be positive")
+
+
 def paschen_breakdown_voltage(
     pressure_torr: float,
     gap_cm: float,
@@ -27,6 +32,7 @@ def paschen_breakdown_voltage(
     """
     if pressure_torr <= 0 or gap_cm <= 0:
         raise ValueError("pressure and gap must be positive")
+    _check_gas_constants(a, b, gamma)
     pd = pressure_torr * gap_cm
     denom = math.log(a * pd / math.log(1.0 + 1.0 / gamma))
     if denom <= 0:
@@ -36,6 +42,7 @@ def paschen_breakdown_voltage(
 
 def paschen_minimum(a: float = 15.0, b: float = 365.0, gamma: float = 0.01) -> tuple[float, float]:
     """Return (pd_min in torr*cm, V_min in volts) of the Paschen curve."""
+    _check_gas_constants(a, b, gamma)
     k = math.log(1.0 + 1.0 / gamma)
     pd_min = math.e * k / a
     return pd_min, b * pd_min
@@ -43,6 +50,10 @@ def paschen_minimum(a: float = 15.0, b: float = 365.0, gamma: float = 0.01) -> t
 
 def relative_air_density(pressure_kpa: float, temp_c: float) -> float:
     """Relative air density delta, referred to 101.3 kPa and 20 degC."""
+    if pressure_kpa <= 0:
+        raise ValueError("pressure must be positive")
+    if temp_c <= -273.0:
+        raise ValueError("temperature must be above -273 degC")
     return (pressure_kpa / 101.3) * (293.0 / (273.0 + temp_c))
 
 

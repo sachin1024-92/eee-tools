@@ -34,6 +34,16 @@ def _parse(key: str, value: str):
     return number
 
 
+def _whole_numbers(function, values: dict) -> None:
+    """Counts such as poles, bits and stages must be whole: 4 or 4.0, never 2.5."""
+    parameters = inspect.signature(function).parameters
+    for key, value in values.items():
+        if key in parameters and parameters[key].annotation in (int, "int") and isinstance(value, float):
+            if not value.is_integer():
+                raise ValueError(f"{key} must be a whole number, got {value:g}")
+            values[key] = int(value)
+
+
 def main(argv: list[str] | None = None) -> int:
     args = sys.argv[1:] if argv is None else argv
     if not args or args[0] in ("-h", "--help") or args[0] not in MODULES:
@@ -51,9 +61,21 @@ def main(argv: list[str] | None = None) -> int:
             if "=" not in item:
                 raise ValueError(f"expected key=value, got {item!r}")
         kwargs = dict(item.split("=", 1) for item in args[2:])
-        result = functions[args[1]](**{k: _parse(k, v) for k, v in kwargs.items()})
+        function = functions[args[1]]
+        values = {k: _parse(k, v) for k, v in kwargs.items()}
+        _whole_numbers(function, values)
+        result = function(**values)
+        numbers = result.values() if isinstance(result, dict) else result if isinstance(result, tuple) else (result,)
+        if not all(math.isfinite(n) for n in numbers):
+            raise OverflowError
     except (TypeError, ValueError) as exc:
         print(f"error: {exc}", file=sys.stderr)
+        return 2
+    except ZeroDivisionError:
+        print("error: these values lead to a division by zero; check for a zero input", file=sys.stderr)
+        return 2
+    except OverflowError:
+        print("error: the result is too large to compute", file=sys.stderr)
         return 2
     if isinstance(result, dict):
         for key, value in result.items():

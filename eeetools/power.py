@@ -32,13 +32,15 @@ def capacitance_for_kvar(kvar: float, line_voltage: float, frequency_hz: float =
 
 def base_impedance(base_kv: float, base_mva: float) -> float:
     """Per-unit base impedance (ohm) from line-line kV and 3-phase MVA."""
-    if base_mva <= 0:
-        raise ValueError("base MVA must be positive")
+    if base_kv <= 0 or base_mva <= 0:
+        raise ValueError("base kV and base MVA must be positive")
     return base_kv**2 / base_mva
 
 
 def per_unit_change_of_base(z_pu: float, kv_old: float, mva_old: float, kv_new: float, mva_new: float) -> float:
     """Convert a per-unit impedance to a new voltage / MVA base."""
+    if min(kv_old, mva_old, kv_new, mva_new) <= 0:
+        raise ValueError("base voltages and base MVAs must be positive")
     return z_pu * (kv_old / kv_new) ** 2 * (mva_new / mva_old)
 
 
@@ -73,6 +75,8 @@ def voltage_drop_percent(
     """Approximate 3-phase feeder voltage drop, % of line voltage (lagging load)."""
     if not 0 <= power_factor <= 1:
         raise ValueError("power factor must be between 0 and 1")
+    if line_voltage <= 0:
+        raise ValueError("line voltage must be positive")
     sin_phi = math.sin(math.acos(power_factor))
     drop = math.sqrt(3.0) * line_current * (resistance * power_factor + reactance * sin_phi)
     return 100.0 * drop / line_voltage
