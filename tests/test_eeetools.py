@@ -191,6 +191,10 @@ def test_cli_rejects_non_numeric_and_non_finite(capsys):
         lambda: drives.breakdown_slip(0, 0, 1, 0),
         lambda: drives.induction_torque_nm(230, 0.05, 0, 0, 0, 0, 50, 4),
         lambda: drives.synchronous_speed_rpm(-50, 4),
+        lambda: power.transformer_efficiency(100, 1, 1.5, 1, 2),    # power factor above 1
+        lambda: power.transformer_efficiency(100, 1, 0.8, -30, 2),  # negative loss gave 154 %
+        lambda: power.transformer_efficiency(-100, -1, 0.8, 1, 2),  # two negatives cancelled out
+        lambda: power.transformer_efficiency(100, 0, 0.8, 1, 2),
     ],
 )
 def test_impossible_inputs_raise_value_error(call):
@@ -218,3 +222,27 @@ def test_cli_reports_bad_values_without_traceback(argv, capsys):
 def test_cli_accepts_whole_number_written_as_float(capsys):
     assert main(["drives", "synchronous_speed_rpm", "frequency_hz=50", "poles=4.0"]) == 0
     assert capsys.readouterr().out.strip() == "1500"
+
+
+def test_transformer_efficiency_allows_an_ideal_lossless_unit():
+    assert power.transformer_efficiency(100, 0.5, 0.8, 0, 0) == 1.0
+
+
+def test_cli_rms_takes_a_comma_separated_list(capsys):
+    assert main(["signals", "rms", "samples=3,4"]) == 0
+    assert capsys.readouterr().out.strip() == f"{math.sqrt(12.5):.6g}"
+    assert main(["signals", "rms", "samples=-5"]) == 0  # a single sample is a list of one
+    assert capsys.readouterr().out.strip() == "5"
+    assert main(["signals", "rms", "samples= 1, -1 ,1e0"]) == 0
+    assert capsys.readouterr().out.strip() == "1"
+
+
+@pytest.mark.parametrize("samples", ["1,,2", "1,2,", "", "1,abc", "1,nan", "1;2"])
+def test_cli_rms_rejects_a_bad_list(samples, capsys):
+    assert main(["signals", "rms", f"samples={samples}"]) == 2
+    assert capsys.readouterr().err.startswith("error: samples must be")
+
+
+def test_cli_does_not_accept_a_list_for_an_ordinary_argument(capsys):
+    assert main(["signals", "db_power", "ratio=1,2"]) == 2
+    assert "must be a number" in capsys.readouterr().err

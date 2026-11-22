@@ -33,6 +33,7 @@ drives.synchronous_speed_rpm(frequency_hz=50, poles=4)        # 1500 rpm
 python -m eeetools                       # list modules
 python -m eeetools hv                    # list functions in a module
 python -m eeetools power pf_correction_kvar real_power_kw=100 pf_initial=0.7 pf_target=0.95
+python -m eeetools signals rms samples=3,4,-5   # several numbers: separate them with commas
 ```
 
 ## Tests

@@ -1,4 +1,7 @@
-"""Command line: ``python -m eeetools <module> <function> key=value ...``"""
+"""Command line: ``python -m eeetools <module> <function> key=value ...``
+
+Functions that take several numbers accept a comma-separated list: ``samples=3,4,-5``.
+"""
 
 from __future__ import annotations
 
@@ -34,6 +37,20 @@ def _parse(key: str, value: str):
     return number
 
 
+def _is_list(function, key: str) -> bool:
+    """True for parameters that take several numbers, such as the samples of ``rms``."""
+    parameter = inspect.signature(function).parameters.get(key)
+    return parameter is not None and str(parameter.annotation).startswith(("Iterable", "typing.Iterable"))
+
+
+def _parse_list(key: str, value: str) -> list:
+    """A comma-separated list of numbers: ``samples=3,4,-5``."""
+    items = [item.strip() for item in value.split(",")]
+    if any(not item for item in items):
+        raise ValueError(f"{key} must be numbers separated by commas, got {value!r}")
+    return [_parse(key, item) for item in items]
+
+
 def _whole_numbers(function, values: dict) -> None:
     """Counts such as poles, bits and stages must be whole: 4 or 4.0, never 2.5."""
     parameters = inspect.signature(function).parameters
@@ -62,7 +79,7 @@ def main(argv: list[str] | None = None) -> int:
                 raise ValueError(f"expected key=value, got {item!r}")
         kwargs = dict(item.split("=", 1) for item in args[2:])
         function = functions[args[1]]
-        values = {k: _parse(k, v) for k, v in kwargs.items()}
+        values = {k: _parse_list(k, v) if _is_list(function, k) else _parse(k, v) for k, v in kwargs.items()}
         _whole_numbers(function, values)
         result = function(**values)
         numbers = result.values() if isinstance(result, dict) else result if isinstance(result, tuple) else (result,)
