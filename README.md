@@ -52,3 +52,7 @@ These are textbook formulas, good for coursework, quick estimates and sanity che
 ## License
 
 MIT
+
+## Releases
+
+Every merge to `main` runs the tests. When the version in `pyproject.toml` is new, a GitHub Release with the wheel and source archive is published automatically. Install a release with `pip install <wheel URL from the Releases page>`.
