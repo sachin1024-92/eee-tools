@@ -1,0 +1,44 @@
+name: Release
+
+# Publishes a GitHub Release with the wheel and source archive whenever the
+# version in pyproject.toml on main has no matching tag yet. To ship a new
+# release, bump the version and merge; nothing else is needed.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Read version
+        id: v
+        run: |
+          version=$(python -c "import tomllib;print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if git rev-parse -q --verify "refs/tags/v$version" >/dev/null; then echo "new=false" >> "$GITHUB_OUTPUT"; else echo "new=true" >> "$GITHUB_OUTPUT"; fi
+      - name: Test
+        if: steps.v.outputs.new == 'true'
+        run: |
+          pip install -e ".[dev]"
+          pytest -q
+      - name: Build
+        if: steps.v.outputs.new == 'true'
+        run: |
+          pip install build
+          python -m build
+      - name: Publish release
+        if: steps.v.outputs.new == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "v${{ steps.v.outputs.version }}" dist/* --title "eee-tools ${{ steps.v.outputs.version }}" --generate-notes
