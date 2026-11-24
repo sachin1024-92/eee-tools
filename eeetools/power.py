@@ -48,10 +48,14 @@ def transformer_efficiency(
     rated_kva: float, load_fraction: float, power_factor: float, core_loss_kw: float, full_load_copper_loss_kw: float
 ) -> float:
     """Efficiency (0..1) of a transformer at a fraction of rated load."""
+    if rated_kva <= 0 or load_fraction <= 0:
+        raise ValueError("rated kVA and load fraction must be positive")
+    if not 0 < power_factor <= 1:
+        raise ValueError("power factor must be in (0, 1]")
+    if core_loss_kw < 0 or full_load_copper_loss_kw < 0:
+        raise ValueError("losses must not be negative")
     output = rated_kva * load_fraction * power_factor
     losses = core_loss_kw + load_fraction**2 * full_load_copper_loss_kw
-    if output <= 0:
-        raise ValueError("output power must be positive")
     return output / (output + losses)
 
 
